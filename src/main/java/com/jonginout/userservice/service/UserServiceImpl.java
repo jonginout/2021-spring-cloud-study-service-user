@@ -1,32 +1,50 @@
 package com.jonginout.userservice.service;
 
+import com.jonginout.userservice.client.OrderServiceClient;
 import com.jonginout.userservice.dto.UserDto;
 import com.jonginout.userservice.jpa.UserEntity;
 import com.jonginout.userservice.jpa.UserRepository;
 import com.jonginout.userservice.vo.ResponseOrder;
 import javassist.NotFoundException;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.convention.MatchingStrategies;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class UserServiceImpl implements UserService {
     UserRepository userRepository;
     BCryptPasswordEncoder passwordEncoder;
+    Environment environment;
+    RestTemplate restTemplate;
+    OrderServiceClient orderServiceClient;
 
     @Autowired
-    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder) {
+    public UserServiceImpl(
+            UserRepository userRepository,
+            BCryptPasswordEncoder passwordEncoder,
+            Environment environment,
+            RestTemplate restTemplate,
+            OrderServiceClient orderServiceClient
+    ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.environment = environment;
+        this.restTemplate = restTemplate;
+        this.orderServiceClient = orderServiceClient;
     }
 
     @Override
@@ -50,9 +68,31 @@ public class UserServiceImpl implements UserService {
         if (userEntity == null) {
             throw new NotFoundException("존재하지 않는 회원입니다.");
         }
+
         UserDto userDto = new ModelMapper().map(userEntity, UserDto.class);
-        List<ResponseOrder> orders = new ArrayList<>();
-        userDto.setOrders(orders);
+
+//        String orderUrl = environment.getProperty("order_service.url") + "/" + userId + "/orders";
+//        ResponseEntity<List<ResponseOrder>> orderListResponse = restTemplate.exchange(
+//                orderUrl,
+//                HttpMethod.GET,
+//                null,
+//                new ParameterizedTypeReference<List<ResponseOrder>>() {
+//                }
+//        );
+
+//        List<ResponseOrder> orderList = null;
+//
+//        try {
+//            ResponseEntity<List<ResponseOrder>> orderListResponse = orderServiceClient.getOrders(userId);
+//            orderList = orderListResponse.getBody();
+//        } catch (FeignException e) {
+//            log.error(e.getLocalizedMessage());
+//        }
+
+        ResponseEntity<List<ResponseOrder>> orderListResponse = orderServiceClient.getOrders(userId);
+        List<ResponseOrder> orderList = orderListResponse.getBody();
+
+        userDto.setOrders(orderList);
 
         return userDto;
     }
