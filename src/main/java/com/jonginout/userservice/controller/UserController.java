@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("/user-service")
+@RequestMapping("/")
 public class UserController {
     private Environment env;
     private Greeting greeting;
@@ -34,7 +34,11 @@ public class UserController {
 
     @GetMapping("/health_check")
     public String healthCheck() {
-        return "It's Working in User Service.." + "port : " + env.getProperty("local.server.port");
+        return "It's Working in User Service.."
+                + "\nport(local.server.port) : " + env.getProperty("local.server.port")
+                + "\nport(server.port) : " + env.getProperty("server.port")
+                + "\ntoken secret : " + env.getProperty("token.secret")
+                + "\ntoken expiration_time : " + env.getProperty("token.expiration_time");
     }
 
     @GetMapping("/welcome")
