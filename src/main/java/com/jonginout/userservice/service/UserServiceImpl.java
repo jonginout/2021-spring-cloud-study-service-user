@@ -10,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.convention.MatchingStrategies;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.client.circuitbreaker.CircuitBreaker;
+import org.springframework.cloud.client.circuitbreaker.CircuitBreakerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.User;
@@ -31,6 +33,7 @@ public class UserServiceImpl implements UserService {
     Environment environment;
     RestTemplate restTemplate;
     OrderServiceClient orderServiceClient;
+    CircuitBreakerFactory circuitBreakerFactory;
 
     @Autowired
     public UserServiceImpl(
@@ -38,13 +41,15 @@ public class UserServiceImpl implements UserService {
             BCryptPasswordEncoder passwordEncoder,
             Environment environment,
             RestTemplate restTemplate,
-            OrderServiceClient orderServiceClient
+            OrderServiceClient orderServiceClient,
+            CircuitBreakerFactory circuitBreakerFactory
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.environment = environment;
         this.restTemplate = restTemplate;
         this.orderServiceClient = orderServiceClient;
+        this.circuitBreakerFactory = circuitBreakerFactory;
     }
 
     @Override
@@ -89,8 +94,15 @@ public class UserServiceImpl implements UserService {
 //            log.error(e.getLocalizedMessage());
 //        }
 
-        ResponseEntity<List<ResponseOrder>> orderListResponse = orderServiceClient.getOrders(userId);
-        List<ResponseOrder> orderList = orderListResponse.getBody();
+        log.info("::::::::::::::::::::::::::: Before call orders MSA");
+
+        CircuitBreaker circuitBreaker = circuitBreakerFactory.create("circuitBreaker");
+        List<ResponseOrder> orderList = circuitBreaker.run(
+                () -> orderServiceClient.getOrders(userId),
+                throwable -> new ArrayList<>()
+        );
+
+        log.info("::::::::::::::::::::::::::: After call orders MSA");
 
         userDto.setOrders(orderList);
 
